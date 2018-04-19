@@ -24,15 +24,19 @@ HitしなかったらHitしなかった位置をリターン(左：1、右：2�
 
 $(window).on("load",function(){
 	//一応ここが起点
-	$("#pz_canvas1").css('visibility','visible'); 
+	$("#pz_canvas1").css('visibility','visible');
 	$("#pz_canvas2").css('visibility','hidden');
-	
+
 	initialize();
-	
+
 	$("button").on("click",function(){
-		shufle();
+		$("button").prop("disabled", true);
+		shufle([],storager.get("panelObj"),new RectObj(150,150,50,50,0,0,0),0);
+		/* canvas要素に対してイベントを設定 */
+		$("canvas").on( "click", function( event ) {
+			move(event);
+		});
 	});
-	
 });
 
 function initialize(){
@@ -60,21 +64,21 @@ function initialize(){
 	  return dfd.promise();
 	}
 
-	
+
 
 	var arr = canvas_change();
-	
+
 	var Obj=[];
-		
+
 	let srcs = [];
 	for (var i=1; i<=15; i++){
 		srcs.push("./img/"+i+".png");
 	}
 	let promise = preload(srcs);
-	
+
 	promise.then(function(){
 		let num=0;
-		
+
 		for (var i=0,true_x=0; i<4; i++,true_x+=50){
 			for(var k=0,true_y=0; k<4; k++,true_y+=50){
 				if(num==15){
@@ -84,18 +88,18 @@ function initialize(){
 				let img = new Image();
 				img.src = "./img/"+(num+1)+".png";
 				Obj[num] = new CanvasObj(img,true_x,true_y,50,50,img.src);
-				
+
 				Obj[num].draw(arr[0]);
 				num++;
 			}
 		}
-		$("#pz_canvas"+arr[1]).css('visibility','visible'); 
+		$("#pz_canvas"+arr[1]).css('visibility','visible');
 		//必ず描画してから消さないと意味がない
 		$("#pz_canvas"+arr[2]).css('visibility','hidden');
-		
+
 		//ローカルストレージに配列を保存
 		storager.set("panelObj", Obj);
-		
+
 	},
 	function(){
 		alert("an error");
@@ -113,21 +117,21 @@ function canvas_change(){
 		//1を2で割ったあまりは1、＋1すれば2
 		//2を1で割ったあまりは0、＋1すれば1
 	}
-	
+
 	storager.set("canvas_kind",canvas_kind);
-	
+
 	let canvas = $("#pz_canvas"+canvas_kind)[0];
 	if ( !canvas || !canvas.getContext ) { return false; }
 	let ctx = canvas.getContext('2d');
 	let arr = [ctx,parseInt(canvas_kind),parseInt(old_canvas_kind)];
-	
+
 	ctx.clearRect(0,0,200,200);
 	ctx.fillStyle="rgb(0,0,0)";
 	ctx.fillRect(0,0,200,200);
-	
+
 	//オブジェクトと現在のキャンバス(Visible用)と過去のキャンバス(Hidden用)を送る
 	return arr;
-	
+
 }
 //→CTXを切り替える
 //切り替わったCTXで全オブジェクトのDrawを実行
@@ -153,7 +157,7 @@ function RectObj(x,y,width,height,r,g,b,ctx){
 	this.r=r;
 	this.g=g;
 	this.b=b;
-	
+
 	this.draw = function(ctx){
 		ctx.fillStyle="rgb("+this.r+","+this.g+","+this.b+")";
 		ctx.fillRect(this.x, this.y, this.width, this.height);
@@ -162,11 +166,11 @@ function RectObj(x,y,width,height,r,g,b,ctx){
 
 
 function rewrite(Obj){
-	
+
 	//移動用の再描画システム
 	var arr = canvas_change();
 	let num=0;
-	
+
 	for (let i=0; i<15; i++){
 		let img = new Image();
 		img.src = Obj[num].url;
@@ -174,24 +178,23 @@ function rewrite(Obj){
 		Obj[num].draw(arr[0]);
 		num++;
 	}
-	$("#pz_canvas"+arr[1]).css('visibility','visible'); 
+	$("#pz_canvas"+arr[1]).css('visibility','visible');
 	//必ず描画してから消さないと意味がない
 	$("#pz_canvas"+arr[2]).css('visibility','hidden');
 }
 
-
-function shufle(){
+function shufle(temp,Obj,blankObj,loop_count){
 
 	//シャッフル
-	var blankObj = new RectObj(150,150,50,50,0,0,0);
-	let Obj = storager.get("panelObj");
 	Obj.push(blankObj);
 	rewrite(Obj);
-	Obj.pop;
-	
+	Obj.pop();
+
+
+
 	//目隠し用の関数なのだが、最初はデバック用に呼ばないでおこう
 	//blind();
-	
+
 /**
 case:0=左
 case:1=上
@@ -199,48 +202,56 @@ case:2=右
 case:3=下
 
 */
-	let loop_count = 0;
-	let move_point = 2;
+
+	let move_point = 10;
 	//何フレームで移動を完了するか
-	
+
 	let array = null;
-	let temp = [];
 	let speed = 0;
-	
+
 	let Temp = function(x,y){
 		this.x=x;
 		this.y=y;
 	}
-	
-	while(1){
-		array = move_pos(temp,Obj,blankObj);
-		
-		if(array == "end"){
-			break;
-		}
-		
-		temp = array["temp"];
-		
-		speed = array["move"]/move_point;
-		
-		animFn(Obj,speed,false,array["pos"],array["houkou"],array["move"]);
-		
-		blankObj.x=array["changeX"];
-		blankObj.y=array["changeY"];
-		//最後にブランクオブジェクトのオブジェクト内容を書き直して、再描画
-		Obj.push(blankObj);
-		rewrite(Obj);
-		Obj.pop();
-		
-		//ループごとに増えるんだからこれでいいはず
-		temp[loop_count] = new Temp(blankObj.x,blankObj.y);
-		
-		loop_count++;
+
+	if(!temp[0]){
+		temp[0] = new Temp(150,150);
 	}
+		array = move_pos(temp,Obj,blankObj);
+
+		if(!array){
+			return;
+		}
+
+		//temp = array["temp"];
+
+		speed = array["move"]/move_point;
+
+		let animFn = AnimFn.bind();
+		animFn(Obj,speed,false,array["pos"],array["houkou"],array["move"]).then(function(result){
+			blankObj.x=array["changeX"];
+			blankObj.y=array["changeY"];
+			//最後にブランクオブジェクトのオブジェクト内容を書き直して、再描画
+			Obj.push(blankObj);
+			rewrite(Obj);
+			Obj.pop();
+
+			//ループごとに増えるんだからこれでいいはず
+			temp[loop_count+1] = new Temp(blankObj.x,blankObj.y);
+
+			loop_count++;
+
+			shufle(temp,Obj,blankObj,loop_count);
+			storager.set("panelObj", Obj);
+		}).catch(function (error) {
+		    // 非同期処理失敗。呼ばれない
+		    console.log(error)
+		});
+		return;
+
 }
 function move_pos(temp,Obj,blankObj){
 	let zahyou = [];
-	let move = 0;
 	/*
 	考え方
 	上下左右をチェック
@@ -251,25 +262,23 @@ function move_pos(temp,Obj,blankObj){
 	*/
 	var count = 0;
 	//左
-	if(blankObj.x -50 > 0){
+	if(blankObj.x -50 >= 0){
 		zahyou[count]={
 			x:blankObj.x -50,
 			y:blankObj.y,
-			move:-50,
+			move:50,
 			houkou:0
 		}
-		move = 50;
 		count++;
 	}
 	//上
-	if(blankObj.y - 50 > 0){
+	if(blankObj.y - 50 >= 0){
 		zahyou[count]={
 			x:blankObj.x,
 			y:blankObj.y - 50,
-			move:-50,
+			move:50,
 			houkou:1
 		}
-		move = 50;
 		count++;
 	}
 	//右
@@ -277,10 +286,9 @@ function move_pos(temp,Obj,blankObj){
 		zahyou[count]={
 			x:blankObj.x + 50,
 			y:blankObj.y,
-			move:50,
+			move:-50,
 			houkou:2
 		}
-		move = -50;
 		count++;
 	}
 	//下
@@ -288,40 +296,42 @@ function move_pos(temp,Obj,blankObj){
 		zahyou[count]={
 			x:blankObj.x,
 			y:blankObj.y + 50,
-			move:50,
+			move:-50,
 			houkou:3
 		}
-		move = -50;
 		count++;
 	}
 	//一度通った場所にはいかない
-	for(let i=0; i>zahyou.length; i++){
-		for(let k=0; k>temp.length; k++){
+	//この部分の実装は明らかに間違っているわけで
+	out : for(let i=0; i < zahyou.length; i++){
+		for(let k=0; k < temp.length; k++){
 			if(zahyou[i].x == temp[k].x && zahyou[i].y == temp[k].y){
 				zahyou.splice(i, 1);
-				continue;
+				i--;
+				continue out;
 			}
 		}
 	}
-	
+
 	//交換できるものが何もなければ処理を戻す
 	if(zahyou.length == 0){
-		return "end";
+		return false;
 	}
-	
+
 	/**
 	整理
 	zahyou配列にはブランクオブジェクトの移動先=移動するパネルのいる場所が入る
 	changeXは移動するパネルの位置X座標なので、
 	*/
-	
-	
+
+
 	//ランダムに存在する座標のどこかに移動
 	var change = Math.floor( Math.random() * zahyou.length );
 	var changeX = zahyou[change].x;
 	var changeY = zahyou[change].y;
 	var houkou = zahyou[change].houkou;
-	
+	let move = zahyou[change].move;
+
 	for(let i=0; i<Obj.length; i++){
 		if(changeX == Obj[i].x && changeY == Obj[i].y){
 			return {pos:i,changeX:changeX,changeY:changeY,temp:temp,houkou:houkou,move:move};
@@ -354,44 +364,52 @@ window.cancelAnimationFrame = (function() {
          function(id) { window.clearTimeout(id); };
 }());
 
-function animFn(Obj,speed,flag,pos,houkou,move){
+function AnimFn(Obj,speed,flag,pos,houkou,move){
 	let left_move = 0;
 	let anim = null;
-	animation();
-	function animation(){
-		window.requestAnimationFrame(animation);
-		//描画系の処理は全部まとめて外に出す。
-		//そして一回ずつ停止する
-		
-		if(!flag){
-			left_move = Math.abs(move);
-			//移動距離の残り
-			flag = true;
+	 return new Promise(function (resolve, reject) {
+		animation();
+		function animation(){
+			let anim = window.requestAnimationFrame(animation);
+			//描画系の処理は全部まとめて外に出す。
+			//そして一回ずつ停止する
+
+			if(!flag){
+				left_move = Math.abs(move);
+				//移動距離の残り
+				flag = true;
+			}
+
+			if(left_move < 0){
+				speed = speed * -1;
+			}
+
+			//ループ
+			if(houkou % 2 ==0){			//左右移動
+				Obj[pos].x += speed;
+			}else{						//上下移動
+				Obj[pos].y += speed;
+			}
+
+			//端数が出た場合の処理
+			if(left_move < 0){
+				left_move = 0;
+				Obj[pos].x = Math.round(Obj[pos].x);
+				Obj[pos].y = Math.round(Obj[pos].y);
+			}else{
+				//move_pointは絶対値でガリガリ削る
+				left_move -= Math.abs(speed);
+			}
+
+			rewrite(Obj);
+
+			if (left_move == 0){
+				cancelAnimationFrame(anim);
+				return resolve(1);
+			}
+			//anim = requestAnimationFrame(animation);
 		}
-		
-		if(left_move < 0){
-			left_move = 0;
-			speed = speed * -1;
-		}
-		
-		//ループ
-		if(houkou % 2 ==0){			//左右移動
-			Obj[pos].x += speed;
-		}else{						//上下移動
-			Obj[pos].y += speed;
-		}
-		
-		//move_pointは絶対値でガリガリ削る
-		left_move -= Math.abs(speed);
-		
-		rewrite(Obj);
-		
-		if (left_move == 0){
-			cancelAnimationFrame(anim);
-			return;
-		}
-		//anim = requestAnimationFrame(animation);
-	}
+	});
 }
 
 function blind(){
@@ -404,36 +422,138 @@ function blind(){
 	ctx.fillRect(0,0, 250, 250);
 }
 
-function game(){
-	if (this.x < Obj[i].x &&
-		this.x + Obj[i].width > Obj[i].x &&
-		this.y < Obj[i].y &&
-		this.y + this.height > Obj[i].y) {
-		// hit test succeeded, handle the click event!
-		return true;
-	}
+function move(e){
+	let x = 0;
+	let y = 0;
 
-	function clear_hantei(){
-		if(hantei()){
-			clear();
+	let Obj = storager.get("panelObj");
+	let speed = 0;
+	let move_point = 10;
+
+	let pos = null;
+	let houkou = null;
+	let move = 0;
+
+	let arr_houkou = [];
+	let count = 0;
+
+	/*
+     * rectでcanvasの絶対座標位置を取得し、
+     * クリック座標であるe.clientX,e.clientYからその分を引く
+     * ※クリック座標はdocumentからの位置を返すため
+     * ※rectはスクロール量によって値が変わるので、onClick()内でつど定義
+     */
+	let rect = e.target.getBoundingClientRect();
+    x = e.clientX - rect.left;
+    y = e.clientY - rect.top;
+
+	//方針は上下左右にパネルがあるかどうかチェックし、なければ移動する。
+    //x,yを座標系に変換
+    x = Math.floor(x / 50) * 50;
+    y = Math.floor(y / 50) * 50;
+
+    //自分自身を取得
+    for(let i=0; i<15; i++){
+    	if(Obj[i].x == x && Obj[i].y == y){
+    		pos = i;
+    	}
+
+    	//マッチングする
+    	if(Obj[i].x == x - 50 && Obj[i].y == y){
+    		//この方向は除外
+    		arr_houkou[count] = 0;
+    		count++;
+    	}else{
+    		//座標内に存在できる
+    		if(x - 50 < 0){
+    			//この方向は除外
+        		arr_houkou[count] = 0;
+        		count++;
+    		}
+    	}
+
+    	if(Obj[i].x == x && Obj[i].y == y - 50){
+    		//この方向は除外
+    		arr_houkou[count] = 1;
+    		count++;
+    	}else{
+    		//座標内に存在できる
+    		if(y - 50 < 0){
+    			//この方向は除外
+        		arr_houkou[count] = 1;
+        		count++;
+    		}
+    	}
+
+    	if(Obj[i].x == x + 50 && Obj[i].y == y){
+    		//この方向は除外
+    		arr_houkou[count] = 2;
+    		count++;
+    	}else{
+    		//座標内に存在できる
+    		if(x + 50 >= 200){
+    			//この方向は除外
+        		arr_houkou[count] = 2;
+        		count++;
+    		}
+    	}
+
+    	if(Obj[i].x == x && Obj[i].y == y + 50){
+    		//この方向は除外
+    		arr_houkou[count] = 3;
+    		count++;
+    	}else{
+    		//座標内に存在できる
+    		if(y + 50 >= 200){
+    			//この方向は除外
+        		arr_houkou[count] = 3;
+        		count++;
+    		}
+    	}
+    }
+
+	for(let i=0; i < 4; i++){
+		houkou = arr_houkou.indexOf(i) >= 0 ? houkou : i;
+		if(houkou != null){
+			break;
 		}
 	}
-	
-	function hantei(){
-		for (i=0,true_x=0; i<4; i++,true_x+=50){
-		//x座標・行数を指定
-			for(k=0,true_y=0; k<4; k++,true_y+=50){
-			//y座標・列数を指定
-				if(Obj[i+k].x != true_x || Obj[i+k].y != true_y){
-					return false;
-				}
+	if(houkou == null){
+		return;
+	}
+	if(houkou < 2){
+		move = -50;
+	}else{
+		move = 50;
+	}
+
+	speed = move/move_point;
+
+	let animFn = AnimFn.bind();
+	animFn(Obj,speed,false,pos,houkou,move).then(function(result){
+		storager.set("panelObj", Obj);
+		if(hantei(Obj)){
+			storager.delete();
+			alert("clear");
+			initialize();
+			$("button").prop("disabled", false);
+		}
+	});
+}
+function hantei(Obj){
+	let num = 0;
+	for (i=0; i<4; i++){
+	//x座標・行数を指定
+		for(k=0; k<4; k++){
+		//y座標・列数を指定
+			if(num == 15){
+				return true;
 			}
+			if(Obj[num].x != i*50 || Obj[num].y != k * 50){
+				return false;
+			}
+			num++;
 		}
-		return true;
-	}
-
-	function clear(){
-		alert("clear!");
 	}
 }
 
@@ -486,18 +606,3 @@ function preload() {
 //もしくは完全な位置座標でもいいけど・・・できるよ？達成可能になったよこれで
 
 
-
-
-class storager{
-	static set(Obj_name,Obj){
-		Function.prototype.toJSON = Function.prototype.toString;
-		window.sessionStorage.setItem(Obj_name, JSON.stringify(Obj));
-	}
-	
-	static get(Obj_name){
-		Function.prototype.toJSON = Function.prototype.toString;
-		let Obj = window.sessionStorage.getItem(Obj_name);
-		var parser = function(k,v){return v.toString().indexOf('function') === 0 ? eval('('+v+')') : v};
-		return JSON.parse(Obj,parser);
-	}
-}

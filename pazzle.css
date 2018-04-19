@@ -1,0 +1,23 @@
+﻿
+
+#pz_canvas1{
+	position:absolute;
+	top:100px;
+	left:100px;
+}
+#pz_canvas2{
+	position:absolute;
+	top:100px;
+	left:100px;
+}
+@media screen and (max-width: 480px) {
+    /*　画面サイズが480pxからはここを読み込む　*/
+	#pz_canvas1{
+		top:50px;
+		left:10px;
+	}
+	#pz_canvas2{
+		top:50px;
+		left:10px;
+	}
+}
